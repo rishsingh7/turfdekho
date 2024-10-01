@@ -3,7 +3,11 @@ const bcrypt = require('bcrypt')
 const app = express();
 const connectDB = require('./config/database')
 const Owner = require('./models/owners')
+const cookieParser = require('cookie-parser')
+const jwt = require('jsonwebtoken')
+const {userAuth} = require('./middlewares/auth')
 app.use(express.json())
+app.use(cookieParser())
 app.post("/signup", async (req, res) => {
 
     const owner = new Owner(req.body)
@@ -40,8 +44,11 @@ app.post("/login", async (req, res) => {
         if (!user) {
             throw new Error("Invalid Credentials")
         }
+   
         const isPasswordMatch = await bcrypt.compare(password, user.password)
         if (isPasswordMatch) {
+            const token = await jwt.sign({_id: user._id}, "yutt878y89y8yuhig78t87gi")
+            res.cookie("token", token)
             res.send("Login Successfull")
         }
         else {
@@ -53,9 +60,25 @@ app.post("/login", async (req, res) => {
     }
 })
 
+app.get("/profile", userAuth, async (req, res) => {
+    try {
+        const cookies = req.cookies;
+        const {token} = cookies;
+        const decodedMessage = await jwt.verify(token, "yutt878y89y8yuhig78t87gi")
+        const {_id} = decodedMessage
+        const user  = await Owner.findById(_id)
+        console.log(user)
+        res.send(user)
+    }
+    catch (err) {
+        res.status(400).send("Something went wrong")
+    }
+})
 app.get("/turfs", async (req, res) => {
     try {
         const owner = await Owner.find({})
+       
+        console.log(isTokenValid)
         res.send(owner)
     }
     catch (err) {
